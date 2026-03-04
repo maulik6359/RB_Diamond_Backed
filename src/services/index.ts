@@ -2,7 +2,7 @@
 // SERVICE LAYER - BUSINESS LOGIC
 // ============================================================================
 
-import { UserRepository, EmployeeRepository, PacketRepository, DashboardRepository } from '../repositories/index.js';
+import { UserRepository, EmployeeRepository, PacketRepository, ClientRepository, DashboardRepository } from '../repositories/index.js';
 import { ValidationError, NotFoundError, UnauthorizedError, STATUS_TRANSITIONS, PacketStatus } from '../types/index.js';
 import { logger, passwordUtils, jwtUtils } from '../utils/logger.js';
 import { config } from '../config/index.js';
@@ -150,21 +150,98 @@ export class EmployeeService {
 }
 
 // ============================================================================
+// CLIENT SERVICE
+// ============================================================================
+
+export class ClientService {
+  private clientRepo = new ClientRepository();
+
+  /**
+   * Create a client
+   */
+  async create(data: { name: string; email?: string | null; phone?: string | null; address?: string | null }) {
+    const existingClient = await this.clientRepo.findByName(data.name);
+    if (existingClient) throw new ValidationError('Client name already exists');
+    const client = await this.clientRepo.create(data);
+    logger.info('Client created', { clientId: client.id });
+    return client;
+  }
+
+  async getById(id: string) {
+    const client = await this.clientRepo.findById(id);
+    if (!client) throw new NotFoundError(`Client ${id} not found`);
+    return client;
+  }
+
+  async getAll(page: number, pageSize: number) {
+    const skip = (page - 1) * pageSize;
+    const [clients, total] = await Promise.all([
+      this.clientRepo.findAll(skip, pageSize),
+      this.clientRepo.count(),
+    ]);
+    return { clients, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } };
+  }
+
+  async update(id: string, data: Partial<{ name: string; email: string | null; phone: string | null; address: string | null }>) {
+    await this.getById(id);
+    const updated = await this.clientRepo.update(id, data);
+    logger.info('Client updated', { clientId: id });
+    return updated;
+  }
+
+  async delete(id: string) {
+    await this.getById(id);
+    await this.clientRepo.delete(id);
+    logger.info('Client deleted', { clientId: id });
+  }
+}
+
+// ============================================================================
 // PACKET SERVICE
 // ============================================================================
 
 export class PacketService {
   private packetRepo = new PacketRepository();
   private employeeRepo = new EmployeeRepository();
+  private clientRepo = new ClientRepository();
 
-  async create(userId: string, data: { description?: string; weight?: number; carat?: number }) {
+  async create(userId: string, data: {
+    clientId: string;
+    description?: string;
+    weight?: number;
+    carat?: number;
+    tyareWeight?: number;
+    color?: string;
+    kasuWeight?: number;
+    peroty?: number;
+    shape?: string;
+    cut?: string;
+    polishWeight?: number;
+  }) {
+    // Validate client exists
+    const client = await this.clientRepo.findById(data.clientId);
+    if (!client) throw new NotFoundError(`Client ${data.clientId} not found`);
+
+    // Validate kasu_weight <= tyare_weight
+    if (data.kasuWeight !== undefined && data.tyareWeight !== undefined && data.kasuWeight > data.tyareWeight) {
+      throw new ValidationError('Kasu weight cannot be greater than Tyare weight');
+    }
+
     const packet = await this.packetRepo.create({
       userId,
+      clientId: data.clientId,
       description: data.description || null,
       weight: data.weight?.toString(),
       carat: data.carat?.toString(),
+      tyareWeight: data.tyareWeight?.toString(),
+      color: data.color || null,
+      kasuWeight: data.kasuWeight?.toString(),
+      peroty: data.peroty?.toString(),
+      shape: data.shape || null,
+      cut: data.cut || null,
+      polishWeight: data.polishWeight?.toString(),
     });
-    logger.info('Packet created', { packetId: packet.id, userId });
+    logger.info('Packet created', { packetId: packet.id, userId, clientId: data.clientId });
     return packet;
   }
 
@@ -183,12 +260,44 @@ export class PacketService {
     return { packets, pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) } };
   }
 
-  async update(id: string, data: { description?: string; weight?: number; carat?: number }) {
+  async update(id: string, data: {
+    clientId?: string;
+    description?: string;
+    weight?: number;
+    carat?: number;
+    tyareWeight?: number;
+    color?: string;
+    kasuWeight?: number;
+    peroty?: number;
+    shape?: string;
+    cut?: string;
+    polishWeight?: number;
+  }) {
     await this.getById(id);
+
+    // Validate client exists if clientId is being updated
+    if (data.clientId) {
+      const client = await this.clientRepo.findById(data.clientId);
+      if (!client) throw new NotFoundError(`Client ${data.clientId} not found`);
+    }
+
+    // Validate kasu_weight <= tyare_weight
+    if (data.kasuWeight !== undefined && data.tyareWeight !== undefined && data.kasuWeight > data.tyareWeight) {
+      throw new ValidationError('Kasu weight cannot be greater than Tyare weight');
+    }
+
     const updateData: any = {};
+    if (data.clientId !== undefined) updateData.clientId = data.clientId;
     if (data.description !== undefined) updateData.description = data.description;
     if (data.weight !== undefined) updateData.weight = data.weight.toString();
     if (data.carat !== undefined) updateData.carat = data.carat.toString();
+    if (data.tyareWeight !== undefined) updateData.tyareWeight = data.tyareWeight.toString();
+    if (data.color !== undefined) updateData.color = data.color;
+    if (data.kasuWeight !== undefined) updateData.kasuWeight = data.kasuWeight.toString();
+    if (data.peroty !== undefined) updateData.peroty = data.peroty.toString();
+    if (data.shape !== undefined) updateData.shape = data.shape;
+    if (data.cut !== undefined) updateData.cut = data.cut;
+    if (data.polishWeight !== undefined) updateData.polishWeight = data.polishWeight.toString();
 
     const updated = await this.packetRepo.update(id, updateData);
     logger.info('Packet updated', { packetId: id });

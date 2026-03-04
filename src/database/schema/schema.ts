@@ -1,6 +1,6 @@
 // ============================================================================
 // DATABASE SCHEMA - DRIZZLE ORM
-// Tables: users, employees, packets
+// Tables: users, employees, clients, packets
 // ============================================================================
 
 import { pgTable, varchar, text, timestamp, decimal, index } from 'drizzle-orm/pg-core';
@@ -48,6 +48,26 @@ export const employees = pgTable(
 );
 
 // ============================================================================
+// CLIENTS TABLE
+// ============================================================================
+
+export const clients = pgTable(
+  'clients',
+  {
+    id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+    name: varchar('name', { length: 255 }).notNull(),
+    email: varchar('email', { length: 255 }),
+    phone: varchar('phone', { length: 20 }),
+    address: text('address'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('clients_name_idx').on(table.name),
+  ]
+);
+
+// ============================================================================
 // PACKETS TABLE
 // ============================================================================
 
@@ -60,16 +80,26 @@ export const packets = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     employeeId: varchar('employee_id', { length: 128 })
       .references(() => employees.id, { onDelete: 'set null' }),
+    clientId: varchar('client_id', { length: 128 })
+      .references(() => clients.id, { onDelete: 'restrict' }),
     status: varchar('status', { length: 20 }).notNull().default('created'),
     description: text('description'),
     weight: decimal('weight', { precision: 10, scale: 4 }),
     carat: decimal('carat', { precision: 10, scale: 4 }),
+    tyareWeight: decimal('tyare_weight', { precision: 10, scale: 4 }),
+    color: varchar('color', { length: 50 }),
+    kasuWeight: decimal('kasu_weight', { precision: 10, scale: 4 }),
+    peroty: decimal('peroty', { precision: 10, scale: 4 }),
+    shape: varchar('shape', { length: 50 }),
+    cut: varchar('cut', { length: 50 }),
+    polishWeight: decimal('polish_weight', { precision: 10, scale: 4 }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('packets_user_id_idx').on(table.userId),
     index('packets_employee_id_idx').on(table.employeeId),
+    index('packets_client_id_idx').on(table.clientId),
     index('packets_status_idx').on(table.status),
   ]
 );
@@ -86,6 +116,10 @@ export const employeesRelations = relations(employees, ({ many }) => ({
   packets: many(packets),
 }));
 
+export const clientsRelations = relations(clients, ({ many }) => ({
+  packets: many(packets),
+}));
+
 export const packetsRelations = relations(packets, ({ one }) => ({
   user: one(users, {
     fields: [packets.userId],
@@ -94,5 +128,9 @@ export const packetsRelations = relations(packets, ({ one }) => ({
   employee: one(employees, {
     fields: [packets.employeeId],
     references: [employees.id],
+  }),
+  client: one(clients, {
+    fields: [packets.clientId],
+    references: [clients.id],
   }),
 }));

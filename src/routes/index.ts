@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Router } from 'express';
-import { AuthController, PacketController, EmployeeController, DashboardController } from '../controllers/index.js';
+import { AuthController, PacketController, EmployeeController, ClientController, DashboardController } from '../controllers/index.js';
 import { authenticateJWT } from '../middleware/index.js';
 
 export function createRoutes(): Router {
@@ -12,6 +12,7 @@ export function createRoutes(): Router {
   const authController = new AuthController();
   const packetController = new PacketController();
   const employeeController = new EmployeeController();
+  const clientController = new ClientController();
   const dashboardController = new DashboardController();
 
   // ========================================================================
@@ -23,15 +24,23 @@ export function createRoutes(): Router {
   router.post('/auth/refresh-token', (req, res, next) => authController.refresh(req, res, next));
   router.get('/auth/user', authenticateJWT, (req, res, next) => authController.getUser(req, res, next));
 
-  // ============================================ ============================
+  // ========================================================================
   // Dashboard ROUTES (all authenticated)
   // ========================================================================
 
   router.get('/dashboard', authenticateJWT, (req, res, next) => dashboardController.getDashboard(req, res, next));
 
+  // ========================================================================
+  // CLIENT ROUTES (all authenticated)
+  // ========================================================================
 
+  router.post('/clients', authenticateJWT, (req, res, next) => clientController.create(req, res, next));
+  router.get('/clients', authenticateJWT, (req, res, next) => clientController.getAll(req, res, next));
+  router.get('/clients/:id', authenticateJWT, (req, res, next) => clientController.getById(req, res, next));
+  router.put('/clients/:id', authenticateJWT, (req, res, next) => clientController.update(req, res, next));
+  router.delete('/clients/:id', authenticateJWT, (req, res, next) => clientController.delete(req, res, next));
 
-  // ============================================ ============================
+  // ========================================================================
   // PACKET ROUTES (all authenticated)
   // ========================================================================
 

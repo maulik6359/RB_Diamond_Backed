@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Request, Response, NextFunction } from 'express';
-import { AuthService, PacketService, EmployeeService, DashboardService } from '../services/index.js';
+import { AuthService, PacketService, EmployeeService, ClientService, DashboardService } from '../services/index.js';
 import { responseUtils, paginationUtils } from '../utils/logger.js';
 import { ValidationError } from '../types/index.js';
 import {
@@ -13,6 +13,8 @@ import {
   updateStatusSchema,
   createEmployeeSchema,
   updateEmployeeSchema,
+  createClientSchema,
+  updateClientSchema,
   loginSchema,
   registerSchema,
 } from '../schemas/index.js';
@@ -54,7 +56,7 @@ export class AuthController {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
       res.json(responseUtils.success(result));
@@ -302,6 +304,84 @@ export class EmployeeController {
     try {
       await this.employeeService.delete(String(req.params.id));
       res.json(responseUtils.success({ message: 'Employee deleted' }));
+    } catch (err) {
+      next(err);
+    }
+  }
+}
+
+// ============================================================================
+// CLIENT CONTROLLER
+// ============================================================================
+
+export class ClientController {
+  private clientService = new ClientService();
+
+  /**
+   * Create a client
+   */
+  async create(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { error, value } = createClientSchema.validate(req.body);
+      if (error) throw new ValidationError(error.details.map((d: any) => d.message).join(', '));
+
+      const client = await this.clientService.create(value);
+      res.status(201).json(responseUtils.success(client));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get client by ID
+   */
+  async getById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const client = await this.clientService.getById(String(req.params.id));
+      res.json(responseUtils.success(client));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get all clients
+   */
+  async getAll(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { page, pageSize } = paginationUtils.getPagination(
+        Number(String(req.query.page || 1)),
+        Number(String(req.query.pageSize || 20)),
+      );
+      const result = await this.clientService.getAll(page, pageSize);
+      res.json(responseUtils.paginated(result.clients, result.pagination.page, result.pagination.pageSize, result.pagination.total));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Update a client
+   */
+  async update(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { error, value } = updateClientSchema.validate(req.body);
+      if (error) throw new ValidationError(error.details.map((d: any) => d.message).join(', '));
+
+      const client = await this.clientService.update(String(req.params.id), value);
+      res.json(responseUtils.success(client));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Delete a client
+   */
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      await this.clientService.delete(String(req.params.id));
+      res.json(responseUtils.success({ message: 'Client deleted' }));
     } catch (err) {
       next(err);
     }

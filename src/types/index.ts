@@ -95,16 +95,46 @@ export interface UpdateEmployeeDTO {
   phone?: string;
 }
 
+export interface CreateClientDTO {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface UpdateClientDTO {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
 export interface CreatePacketDTO {
+  clientId: string;
   description?: string;
   weight?: number;
   carat?: number;
+  tyareWeight?: number;
+  color?: string;
+  kasuWeight?: number;
+  peroty?: number;
+  shape?: string;
+  cut?: string;
+  polishWeight?: number;
 }
 
 export interface UpdatePacketDTO {
+  clientId?: string;
   description?: string;
   weight?: number;
   carat?: number;
+  tyareWeight?: number;
+  color?: string;
+  kasuWeight?: number;
+  peroty?: number;
+  shape?: string;
+  cut?: string;
+  polishWeight?: number;
 }
 
 export interface AssignPacketDTO {
